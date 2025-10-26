@@ -1,0 +1,32 @@
+# AWS Configuration Example
+# Copy this file to terraform.tfvars and update the values
+
+aws_region         = "us-east-1"
+project_name       = "prebid-server"
+environment        = "prod"
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+# Container Configuration
+container_name  = "prebid-server"
+container_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/prebid-server:latest"
+container_port  = 8080
+
+# Task Configuration
+task_cpu    = "1024"  # 1 vCPU
+task_memory = "2048"  # 2 GB
+
+# Scaling Configuration
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 10
+
+# Auto-scaling Targets
+cpu_target_value    = 70
+memory_target_value = 80
+
+# Health Check
+health_check_path = "/status"
+
+# Logging
+log_retention_days = 7

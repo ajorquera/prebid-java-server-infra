@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  prebid-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - JAVA_OPTS=-Xmx1g -Xms512m
+    volumes:
+      - ./config:/app/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - prebid-network
+
+networks:
+  prebid-network:
+    driver: bridge
