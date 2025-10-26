@@ -4,20 +4,8 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
-# Import existing AWS infrastructure outputs
-data "terraform_remote_state" "aws" {
-  backend = "local"
-  config = {
-    path = "../aws/terraform.tfstate"
   }
 }
 
@@ -30,7 +18,7 @@ resource "aws_route53_zone" "main" {
 # Health check for AWS ALB
 resource "aws_route53_health_check" "aws_alb" {
   count             = var.domain_name != "" ? 1 : 0
-  fqdn              = data.terraform_remote_state.aws.outputs.alb_dns_name
+  fqdn              = var.aws_lb_dns_name
   port              = 80
   type              = "HTTP"
   resource_path     = var.health_check_path
@@ -50,8 +38,8 @@ resource "aws_route53_record" "primary" {
   type    = "A"
 
   alias {
-    name                   = data.terraform_remote_state.aws.outputs.alb_dns_name
-    zone_id                = data.terraform_remote_state.aws.outputs.alb_zone_id
+    name                   = var.aws_lb_dns_name
+    zone_id                = var.aws_alb_zone_id
     evaluate_target_health = true
   }
 
@@ -65,7 +53,6 @@ resource "aws_route53_record" "primary" {
 
 # Secondary DNS record (GCP Cloud Run)
 resource "aws_route53_record" "secondary" {
-  count   = var.domain_name != "" && var.gcp_cloudrun_url != "" ? 1 : 0
   zone_id = aws_route53_zone.main[0].zone_id
   name    = var.subdomain != "" ? "${var.subdomain}.${var.domain_name}" : var.domain_name
   type    = "CNAME"
@@ -78,4 +65,6 @@ resource "aws_route53_record" "secondary" {
   }
 
   set_identifier = "secondary-gcp"
+
+  depends_on = [ var.gcp_cloudrun_url ]
 }

@@ -1,9 +1,3 @@
-variable "aws_region" {
-  description = "AWS region for resources"
-  type        = string
-  default     = "us-east-1"
-}
-
 variable "project_name" {
   description = "Project name used for resource naming"
   type        = string
@@ -37,7 +31,7 @@ variable "container_name" {
 variable "container_image" {
   description = "Docker image for the container (use prebid/prebid-server-java:latest or your custom build)"
   type        = string
-  default     = "prebid/prebid-server-java:latest"
+  default     = "prebid/prebid-server:v3.28.0"
 }
 
 variable "container_port" {
@@ -61,19 +55,19 @@ variable "task_memory" {
 variable "desired_count" {
   description = "Desired number of tasks"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "min_capacity" {
   description = "Minimum number of tasks for auto-scaling"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "max_capacity" {
   description = "Maximum number of tasks for auto-scaling"
   type        = number
-  default     = 10
+  default     = 100
 }
 
 variable "cpu_target_value" {
@@ -98,4 +92,10 @@ variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
   default     = 7
+}
+
+variable "aws_region" {
+  description = "AWS region to deploy resources"
+  type        = string
+  default     = "us-east-1"
 }

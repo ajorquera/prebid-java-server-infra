@@ -24,7 +24,7 @@ variable "environment" {
 variable "container_image" {
   description = "Docker image for the container (use prebid/prebid-server-java:latest or your custom build)"
   type        = string
-  default     = "gcr.io/cloudrun/hello"
+  default     = "gcr.io/prebid-server/prebid-server-java:latest"
 }
 
 variable "container_port" {

@@ -14,6 +14,17 @@ provider "google" {
   region  = var.gcp_region
 }
 
+resource "google_project_service" "gcp_services" {
+  for_each = toset([
+    "run.googleapis.com",
+    "containerregistry.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "compute.googleapis.com",
+  ])
+  project = var.gcp_project_id
+  service = each.key
+}
+
 # Enable required APIs
 resource "google_project_service" "cloudrun" {
   service            = "run.googleapis.com"

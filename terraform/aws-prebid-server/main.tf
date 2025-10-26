@@ -4,13 +4,9 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
   }
-}
-
-provider "aws" {
-  region = var.aws_region
 }
 
 # VPC Configuration
@@ -406,10 +402,8 @@ resource "aws_ecs_service" "prebid_service" {
 
   health_check_grace_period_seconds = 60
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent = 200
+  deployment_minimum_healthy_percent = 100
 
   depends_on = [
     aws_lb_listener.http,

@@ -1,0 +1,56 @@
+terraform {
+  backend "s3" {
+    bucket = "lngtd-new-terraform-states"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+module "aws-tfstate" {
+  source  = "ajorquera/modules/ajorquera//modules/aws-tfstate"
+  version = "1.0.1"
+  bucket_prefix = "lngtd-new"
+}
+
+locals {
+  project_name      = "prebid-server"
+  gcp_project_id    = "testing-account-476319"
+  domain_name       = "createapp.click"
+  subdomain         = "s2s"
+  gcp_region        = "us-central1"
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+provider "google" {
+  project = local.gcp_project_id
+  region  = local.gcp_region
+}
+
+
+module "aws-failover" {
+  source = "./aws-failover"
+
+  project_name      = local.project_name
+  domain_name       = local.project_name
+  subdomain         = local.subdomain
+  gcp_cloudrun_url  = module.gcp-prebid-server.cloudrun_url
+  aws_lb_dns_name   = module.aws-prebid-server.alb_dns_name
+  aws_alb_zone_id   = module.aws-prebid-server.alb_zone_id
+
+  depends_on = [ module.gcp-prebid-server.cloudrun_url, module.aws-prebid-server.alb_dns_name ]
+}
+
+module "aws-prebid-server" {
+  source = "./aws-prebid-server"
+  project_name      = local.project_name
+}
+
+module "gcp-prebid-server" {
+  source = "./gcp-prebid-server"
+  gcp_project_id    = local.gcp_project_id
+  gcp_region        = local.gcp_region
+  project_name      = local.project_name
+}
+

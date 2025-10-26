@@ -1,9 +1,3 @@
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
-}
-
 variable "project_name" {
   description = "Project name"
   type        = string
@@ -32,4 +26,14 @@ variable "gcp_cloudrun_url" {
   description = "GCP Cloud Run URL (without https://)"
   type        = string
   default     = ""
+}
+
+variable "aws_lb_dns_name" {
+  description = "AWS Load Balancer DNS name"
+  type        = string
+}
+
+variable "aws_alb_zone_id" {
+  description = "AWS Load Balancer Zone ID"
+  type        = string
 }

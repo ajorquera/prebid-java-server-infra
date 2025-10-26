@@ -1,7 +1,6 @@
 # Failover Configuration Example
 # Copy this file to terraform.tfvars and update the values
 
-aws_region = "us-east-1"
 project_name = "prebid-server"
 
 # Domain Configuration (optional)
