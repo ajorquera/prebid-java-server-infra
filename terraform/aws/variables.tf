@@ -35,9 +35,9 @@ variable "container_name" {
 }
 
 variable "container_image" {
-  description = "Docker image for the container"
+  description = "Docker image for the container (use prebid/prebid-server-java:latest or your custom build)"
   type        = string
-  default     = "prebid/prebid-server:latest"
+  default     = "prebid/prebid-server-java:latest"
 }
 
 variable "container_port" {

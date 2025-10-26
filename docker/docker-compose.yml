@@ -6,12 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8080:8080"  # Main API port
+      - "8060:8060"  # Admin port
     environment:
-      - ENVIRONMENT=development
       - JAVA_OPTS=-Xmx1g -Xms512m
     volumes:
-      - ./config:/app/config
+      # Mount custom configuration (create these directories if needed)
+      - ./config:/app/prebid-server/conf
+      - ./data:/app/prebid-server/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
       interval: 30s

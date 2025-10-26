@@ -8,8 +8,9 @@ vpc_cidr           = "10.0.0.0/16"
 availability_zones = ["us-east-1a", "us-east-1b"]
 
 # Container Configuration
+# Use official Prebid Server Java image or your custom build
 container_name  = "prebid-server"
-container_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/prebid-server:latest"
+container_image = "prebid/prebid-server-java:latest"  # Or use your ECR: 123456789012.dkr.ecr.us-east-1.amazonaws.com/prebid-server-java:latest
 container_port  = 8080
 
 # Task Configuration

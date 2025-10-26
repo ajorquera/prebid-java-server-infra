@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-# Build and push Docker image to AWS ECR and GCP Container Registry
+# Build and push Prebid Server Java Docker image to AWS ECR and GCP Container Registry
 
 # Configuration
 AWS_REGION="${AWS_REGION:-us-east-1}"
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
 GCP_PROJECT_ID="${GCP_PROJECT_ID}"
-IMAGE_NAME="prebid-server"
+IMAGE_NAME="prebid-server-java"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 if [ -z "$AWS_ACCOUNT_ID" ]; then
@@ -20,8 +20,11 @@ if [ -z "$GCP_PROJECT_ID" ]; then
     exit 1
 fi
 
-# AWS ECR
-echo "Building Docker image..."
+echo "Building Prebid Server Java Docker image..."
+echo "Note: This builds from source. For production, consider using prebid/prebid-server-java:latest"
+echo ""
+
+# Build the image
 cd "$(dirname "$0")/../docker"
 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
 
@@ -52,6 +55,15 @@ docker push ${GCP_GCR_URL}/${IMAGE_NAME}:${IMAGE_TAG}
 echo "Image pushed to GCP GCR: ${GCP_GCR_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Docker images built and pushed successfully!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 echo "AWS ECR: ${AWS_ECR_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
 echo "GCP GCR: ${GCP_GCR_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
+echo ""
+echo "Update your terraform.tfvars files with these image URLs."
+echo ""
+echo "Alternative: Use the official prebuilt image:"
+echo "  - prebid/prebid-server-java:latest"
+echo ""

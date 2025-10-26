@@ -13,14 +13,14 @@ This guide will help you deploy the Prebid Server infrastructure to both AWS and
 
 ## 5-Minute Local Test
 
-Test the application locally before deploying to the cloud:
+Test Prebid Server Java locally before deploying to the cloud:
 
 ```bash
 # Clone the repository
 git clone https://github.com/ajorquera/prebid-java-server-infra.git
 cd prebid-java-server-infra
 
-# Start with Docker Compose
+# Start with Docker Compose (builds Prebid Server Java from source)
 cd docker
 docker-compose up
 
@@ -29,36 +29,60 @@ curl http://localhost:8080/status
 ```
 
 Expected response:
-```json
-{
-  "status": "UP",
-  "service": "prebid-server",
-  "timestamp": 1234567890
-}
 ```
+200 OK
+```
+
+**Note:** The first build will take several minutes as it downloads and compiles Prebid Server Java. Subsequent builds will be faster.
 
 Press `Ctrl+C` to stop the server.
 
 ## Deploy to AWS (Primary Service)
 
-### Step 1: Set Environment Variables
+### Deployment Option
+
+You can use either:
+- **Option A (Recommended):** Official prebuilt image `prebid/prebid-server-java:latest`
+- **Option B:** Build from source using the provided Dockerfile
+
+### Step 1: Configure Terraform (Option A - Prebuilt Image)
+
+```bash
+cd terraform/aws
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars and set:
+# container_image = "prebid/prebid-server-java:latest"
+```
+
+Skip to Step 3 below.
+
+### Step 1-2: Build and Push (Option B - Custom Build)
+
+Set Environment Variables:
 
 ```bash
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export AWS_REGION=us-east-1
+export GCP_PROJECT_ID=your-gcp-project-id
 export IMAGE_TAG=v1.0.0
 ```
 
-### Step 2: Build and Push Docker Image to ECR
+### Step 2: Build and Push (Option B only)
 
 ```bash
+cd /path/to/prebid-java-server-infra
 ./scripts/build-and-push.sh
 ```
 
 This will:
-- Build the Docker image
-- Create ECR repository if needed
-- Push image to ECR
+- Build Prebid Server Java from source
+- Create ECR and GCR repositories if needed
+- Push images to both registries
+
+**Save the image URLs** for the next step.
+
+### Step 3: Configure and Deploy Terraform
 - Output the ECR image URL
 
 **Save the ECR image URL** - you'll need it in the next step.

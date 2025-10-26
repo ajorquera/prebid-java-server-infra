@@ -76,9 +76,23 @@ This infrastructure provides:
 
 ## Deployment Guide
 
-### Step 1: Build and Push Docker Images
+### Step 1: Choose Your Deployment Option
 
-Build the Docker image and push it to both AWS ECR and GCP Container Registry:
+You have two options for deploying Prebid Server Java:
+
+**Option A: Use the Official Prebuilt Image (Recommended)**
+- Fastest deployment
+- Maintained by Prebid.org
+- Use `prebid/prebid-server-java:latest` in your terraform.tfvars
+
+**Option B: Build from Source**
+- Full control over the build
+- Ability to customize
+- Follow the build instructions below
+
+### Step 2: Build and Push Docker Images (Option B only)
+
+If building from source, push the image to both AWS ECR and GCP Container Registry:
 
 ```bash
 # Set required environment variables
@@ -87,11 +101,13 @@ export AWS_REGION=us-east-1
 export GCP_PROJECT_ID=your-gcp-project-id
 export IMAGE_TAG=v1.0.0
 
-# Build and push images
+# Build and push images (builds Prebid Server Java from source)
 ./scripts/build-and-push.sh
 ```
 
-### Step 2: Deploy to AWS Fargate (Primary)
+**Note:** For production deployments using the prebuilt image, you can skip the build step and use `prebid/prebid-server-java:latest` directly in your Terraform configuration.
+
+### Step 3: Deploy to AWS Fargate (Primary)
 
 1. Navigate to the AWS Terraform directory:
    ```bash
@@ -103,8 +119,9 @@ export IMAGE_TAG=v1.0.0
    cp terraform.tfvars.example terraform.tfvars
    ```
 
-3. Edit `terraform.tfvars` and update the values, especially:
-   - `container_image`: Use the ECR image URL from step 1
+3. Edit `terraform.tfvars` and update the values:
+   - **Option A (Prebuilt):** `container_image = "prebid/prebid-server-java:latest"`
+   - **Option B (Custom):** Use the ECR image URL from step 2
    - Other configuration as needed
 
 4. Deploy using the script:
@@ -124,7 +141,7 @@ export IMAGE_TAG=v1.0.0
    terraform output alb_dns_name
    ```
 
-### Step 3: Deploy to GCP Cloud Run (Fallback)
+### Step 4: Deploy to GCP Cloud Run (Fallback)
 
 1. Navigate to the GCP Terraform directory:
    ```bash
@@ -136,9 +153,10 @@ export IMAGE_TAG=v1.0.0
    cp terraform.tfvars.example terraform.tfvars
    ```
 
-3. Edit `terraform.tfvars` and update the values, especially:
+3. Edit `terraform.tfvars` and update the values:
    - `gcp_project_id`: Your GCP project ID
-   - `container_image`: Use the GCR image URL from step 1
+   - **Option A (Prebuilt):** `container_image = "prebid/prebid-server-java:latest"`
+   - **Option B (Custom):** Use the GCR image URL from step 2
    - Other configuration as needed
 
 4. Deploy using the script:
