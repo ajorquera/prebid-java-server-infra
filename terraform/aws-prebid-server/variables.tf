@@ -1,13 +1,11 @@
 variable "project_name" {
   description = "Project name used for resource naming"
   type        = string
-  default     = "prebid-server"
 }
 
-variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
+variable "aws_region" {
+  description = "AWS region to deploy resources"
   type        = string
-  default     = "prod"
 }
 
 variable "vpc_cidr" {
@@ -22,16 +20,9 @@ variable "availability_zones" {
   default     = ["us-east-1a", "us-east-1b"]
 }
 
-variable "container_name" {
-  description = "Name of the container"
+variable "image_name" {
+  description = "Container image name in ECR"
   type        = string
-  default     = "prebid-server"
-}
-
-variable "container_image" {
-  description = "Docker image for the container (use prebid/prebid-server-java:latest or your custom build)"
-  type        = string
-  default     = "prebid/prebid-server:v3.28.0"
 }
 
 variable "container_port" {
@@ -94,8 +85,7 @@ variable "log_retention_days" {
   default     = 7
 }
 
-variable "aws_region" {
-  description = "AWS region to deploy resources"
-  type        = string
-  default     = "us-east-1"
+variable "repository_id" {
+  description = "value"
+  type = string
 }

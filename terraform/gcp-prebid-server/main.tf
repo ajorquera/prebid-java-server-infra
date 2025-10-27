@@ -4,9 +4,21 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "~> 7.0"
+    }
+      docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.6.2"
     }
   }
+}
+
+locals {
+  DOCKER_REGISTRY_URL = "${var.gcp_region}-docker.pkg.dev"
+}
+
+provider docker {
+  host = "unix:///Users/andres/.docker/run/docker.sock"
 }
 
 provider "google" {
@@ -25,22 +37,6 @@ resource "google_project_service" "gcp_services" {
   service = each.key
 }
 
-# Enable required APIs
-resource "google_project_service" "cloudrun" {
-  service            = "run.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "containerregistry" {
-  service            = "containerregistry.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "compute" {
-  service            = "compute.googleapis.com"
-  disable_on_destroy = false
-}
-
 # Service Account for Cloud Run
 resource "google_service_account" "cloudrun_sa" {
   account_id   = "${var.project_name}-cloudrun-sa"
@@ -48,35 +44,77 @@ resource "google_service_account" "cloudrun_sa" {
   description  = "Service account for Prebid Server Cloud Run service"
 }
 
+resource "google_artifact_registry_repository" "default" {
+  repository_id = var.repository_id
+  location      = var.gcp_region
+  format        = "DOCKER"
+}
+
+resource "google_storage_bucket" "default" {
+  name     = "cloudrun-service"
+  project  = var.gcp_project_id
+  location = var.gcp_region
+  uniform_bucket_level_access = true
+}
+
+resource "terraform_data" "build_deploy_image" {
+  provisioner "local-exec" {
+    # set multiline
+    environment = {
+      GCP_PROJECT_ID  = var.gcp_project_id,
+      REPOSITORY_ID  = "${var.gcp_project_id}/${var.repository_id}",
+      IMAGE_NAME      = var.image_name,
+      REGISTRY_URL    = local.DOCKER_REGISTRY_URL
+    }
+    command = "${path.root}/../scripts/build-push-image.sh"
+  }
+
+  triggers_replace = {
+    dir_sha1 = sha1(join("", [for f in fileset("${path.root}/../docker", "*"): filesha1("${path.root}/../docker/${f}")]))
+  }
+}
+
 # Cloud Run Service
-resource "google_cloud_run_service" "prebid_server" {
+resource "google_cloud_run_v2_service" "prebid_server" {
   name     = var.project_name
   location = var.gcp_region
+  deletion_protection = false
+  ingress = "INGRESS_TRAFFIC_ALL"
+  scaling {
+    max_instance_count = var.max_instances
+    min_instance_count = var.min_instances
+  }
 
   template {
-    spec {
-      service_account_name = google_service_account.cloudrun_sa.email
+    volumes {
+      name = "bucket"
+      gcs {
+        bucket    = google_storage_bucket.default.name
+        read_only = false
+      }
+    }
+    max_instance_request_concurrency = var.container_concurrency
+
+    containers {
       
-      containers {
-        image = var.container_image
+      image = "${local.DOCKER_REGISTRY_URL}/${var.gcp_project_id}/${var.repository_id}/${var.image_name}"
 
-        ports {
-          container_port = var.container_port
+      ports {
+        container_port = 8080
+      }
+
+      volume_mounts {
+        name       = "bucket"
+        mount_path = "/mnt/efs"
+      }
+
+      resources {
+        limits = {
+          cpu    = var.cpu_limit
+          memory = var.memory_limit
         }
-
-        env {
-          name  = "ENVIRONMENT"
-          value = var.environment
-        }
-
-        resources {
-          limits = {
-            cpu    = var.cpu_limit
-            memory = var.memory_limit
-          }
-        }
-
-        startup_probe {
+      }
+      startup_probe {
           http_get {
             path = var.health_check_path
             port = var.container_port
@@ -98,108 +136,7 @@ resource "google_cloud_run_service" "prebid_server" {
           failure_threshold     = 3
         }
       }
-
-      container_concurrency = var.container_concurrency
-      timeout_seconds       = var.timeout_seconds
     }
 
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = var.min_instances
-        "autoscaling.knative.dev/maxScale" = var.max_instances
-        "run.googleapis.com/cpu-throttling" = "false"
-      }
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  autogenerate_revision_name = true
-
-  depends_on = [
-    google_project_service.cloudrun
-  ]
-}
-
-# IAM policy to allow public access (or restrict as needed)
-resource "google_cloud_run_service_iam_member" "public_access" {
-  count = var.allow_public_access ? 1 : 0
-
-  service  = google_cloud_run_service.prebid_server.name
-  location = google_cloud_run_service.prebid_server.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
-# Global External HTTP(S) Load Balancer
-resource "google_compute_global_address" "default" {
-  name = "${var.project_name}-lb-ip"
-}
-
-# Health check for the backend service
-resource "google_compute_health_check" "default" {
-  name = "${var.project_name}-health-check"
-
-  timeout_sec        = 5
-  check_interval_sec = 10
-  healthy_threshold  = 2
-  unhealthy_threshold = 3
-
-  http_health_check {
-    port         = var.container_port
-    request_path = var.health_check_path
-  }
-
-  depends_on = [google_project_service.compute]
-}
-
-# Backend service for Cloud Run
-resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
-  name                  = "${var.project_name}-neg"
-  network_endpoint_type = "SERVERLESS"
-  region                = var.gcp_region
-
-  cloud_run {
-    service = google_cloud_run_service.prebid_server.name
-  }
-}
-
-resource "google_compute_backend_service" "default" {
-  name = "${var.project_name}-backend"
-
-  protocol    = "HTTP"
-  port_name   = "http"
-  timeout_sec = var.timeout_seconds
-
-  backend {
-    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
-  }
-
-  log_config {
-    enable = true
-    sample_rate = 1.0
-  }
-}
-
-# URL map
-resource "google_compute_url_map" "default" {
-  name            = "${var.project_name}-url-map"
-  default_service = google_compute_backend_service.default.id
-}
-
-# HTTP proxy
-resource "google_compute_target_http_proxy" "default" {
-  name    = "${var.project_name}-http-proxy"
-  url_map = google_compute_url_map.default.id
-}
-
-# Forwarding rule
-resource "google_compute_global_forwarding_rule" "default" {
-  name       = "${var.project_name}-forwarding-rule"
-  target     = google_compute_target_http_proxy.default.id
-  port_range = "80"
-  ip_address = google_compute_global_address.default.address
+  depends_on = [ google_project_service.gcp_services[0] ]
 }

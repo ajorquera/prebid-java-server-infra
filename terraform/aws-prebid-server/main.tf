@@ -6,19 +6,54 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.6.2"
+    }
   }
 }
+
+provider "docker" {
+  host = "unix:///Users/andres/.docker/run/docker.sock"
+}
+
+locals {
+  container_name = "prebid-server-container"
+  DOCKER_REGISTRY_URL = "${data.aws_caller_identity.default.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" 
+}
+
+resource "aws_ecr_repository" "default" {
+  name = var.repository_id
+  region = var.aws_region
+}
+
+resource "terraform_data" "build_deploy_image" {
+  provisioner "local-exec" {
+    # set multiline
+    environment = {
+      AWS_REGION      = var.aws_region
+      AWS_ACCOUNT_ID  = data.aws_caller_identity.default.account_id
+      REPOSITORY_ID   = var.repository_id
+      IMAGE_NAME      = var.image_name,
+      REGISTRY_URL    = local.DOCKER_REGISTRY_URL
+    }
+    command = "${path.root}/../scripts/build-push-image.sh"
+    
+  }
+  triggers_replace = {
+    dir_sha2 = sha1(join("", [for f in fileset("${path.root}/../docker", "*"): filesha1("${path.root}/../docker/${f}")]))
+  }
+
+  depends_on = [ aws_ecr_repository.default ]
+}
+
+data "aws_caller_identity" "default" {}
 
 # VPC Configuration
 resource "aws_vpc" "prebid_vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
-
-  tags = {
-    Name        = "${var.project_name}-vpc"
-    Environment = var.environment
-  }
 }
 
 # Public Subnets
@@ -29,10 +64,6 @@ resource "aws_subnet" "public_subnets" {
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name        = "${var.project_name}-public-subnet-${count.index + 1}"
-    Environment = var.environment
-  }
 }
 
 # Private Subnets
@@ -42,31 +73,17 @@ resource "aws_subnet" "private_subnets" {
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
   availability_zone = var.availability_zones[count.index]
 
-  tags = {
-    Name        = "${var.project_name}-private-subnet-${count.index + 1}"
-    Environment = var.environment
-  }
 }
 
 # Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.prebid_vpc.id
-
-  tags = {
-    Name        = "${var.project_name}-igw"
-    Environment = var.environment
-  }
 }
 
 # Elastic IPs for NAT Gateways
 resource "aws_eip" "nat_eips" {
   count  = length(var.availability_zones)
   domain = "vpc"
-
-  tags = {
-    Name        = "${var.project_name}-nat-eip-${count.index + 1}"
-    Environment = var.environment
-  }
 }
 
 # NAT Gateways
@@ -74,11 +91,6 @@ resource "aws_nat_gateway" "nat_gateways" {
   count         = length(var.availability_zones)
   allocation_id = aws_eip.nat_eips[count.index].id
   subnet_id     = aws_subnet.public_subnets[count.index].id
-
-  tags = {
-    Name        = "${var.project_name}-nat-${count.index + 1}"
-    Environment = var.environment
-  }
 
   depends_on = [aws_internet_gateway.igw]
 }
@@ -92,10 +104,6 @@ resource "aws_route_table" "public_rt" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = {
-    Name        = "${var.project_name}-public-rt"
-    Environment = var.environment
-  }
 }
 
 # Public Route Table Association
@@ -113,11 +121,6 @@ resource "aws_route_table" "private_rt" {
   route {
     cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat_gateways[count.index].id
-  }
-
-  tags = {
-    Name        = "${var.project_name}-private-rt-${count.index + 1}"
-    Environment = var.environment
   }
 }
 
@@ -157,11 +160,6 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name        = "${var.project_name}-alb-sg"
-    Environment = var.environment
-  }
 }
 
 # Security Group for ECS Tasks
@@ -185,11 +183,6 @@ resource "aws_security_group" "ecs_tasks_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name        = "${var.project_name}-ecs-tasks-sg"
-    Environment = var.environment
-  }
 }
 
 # Application Load Balancer
@@ -201,11 +194,6 @@ resource "aws_lb" "prebid_alb" {
   subnets            = aws_subnet.public_subnets[*].id
 
   enable_deletion_protection = false
-
-  tags = {
-    Name        = "${var.project_name}-alb"
-    Environment = var.environment
-  }
 }
 
 # Target Group
@@ -229,11 +217,6 @@ resource "aws_lb_target_group" "prebid_tg" {
   }
 
   deregistration_delay = 30
-
-  tags = {
-    Name        = "${var.project_name}-tg"
-    Environment = var.environment
-  }
 }
 
 # ALB Listener
@@ -256,22 +239,12 @@ resource "aws_ecs_cluster" "prebid_cluster" {
     name  = "containerInsights"
     value = "enabled"
   }
-
-  tags = {
-    Name        = "${var.project_name}-cluster"
-    Environment = var.environment
-  }
 }
 
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "prebid_logs" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = var.log_retention_days
-
-  tags = {
-    Name        = "${var.project_name}-logs"
-    Environment = var.environment
-  }
 }
 
 # ECS Task Execution Role
@@ -290,11 +263,6 @@ resource "aws_iam_role" "ecs_task_execution_role" {
       }
     ]
   })
-
-  tags = {
-    Name        = "${var.project_name}-ecs-task-execution-role"
-    Environment = var.environment
-  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
@@ -319,10 +287,6 @@ resource "aws_iam_role" "ecs_task_role" {
     ]
   })
 
-  tags = {
-    Name        = "${var.project_name}-ecs-task-role"
-    Environment = var.environment
-  }
 }
 
 # ECS Task Definition
@@ -337,21 +301,14 @@ resource "aws_ecs_task_definition" "prebid_task" {
 
   container_definitions = jsonencode([
     {
-      name      = var.container_name
-      image     = var.container_image
+      name      = local.container_name
+      image     = "${local.DOCKER_REGISTRY_URL}/${var.repository_id}"
       essential = true
 
       portMappings = [
         {
           containerPort = var.container_port
           protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "ENVIRONMENT"
-          value = var.environment
         }
       ]
 
@@ -373,20 +330,17 @@ resource "aws_ecs_task_definition" "prebid_task" {
       }
     }
   ])
-
-  tags = {
-    Name        = "${var.project_name}-task"
-    Environment = var.environment
-  }
 }
 
 # ECS Service
 resource "aws_ecs_service" "prebid_service" {
-  name            = "${var.project_name}-service"
-  cluster         = aws_ecs_cluster.prebid_cluster.id
-  task_definition = aws_ecs_task_definition.prebid_task.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name             = "${var.project_name}-service"
+  cluster          = aws_ecs_cluster.prebid_cluster.id
+  task_definition  = aws_ecs_task_definition.prebid_task.arn
+  desired_count    = var.desired_count
+  launch_type      = "FARGATE"
+  platform_version = "1.4.0"
+
 
   network_configuration {
     subnets          = aws_subnet.private_subnets[*].id
@@ -396,7 +350,7 @@ resource "aws_ecs_service" "prebid_service" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.prebid_tg.arn
-    container_name   = var.container_name
+    container_name   = local.container_name
     container_port   = var.container_port
   }
 
@@ -409,11 +363,6 @@ resource "aws_ecs_service" "prebid_service" {
     aws_lb_listener.http,
     aws_iam_role_policy_attachment.ecs_task_execution_role_policy
   ]
-
-  tags = {
-    Name        = "${var.project_name}-service"
-    Environment = var.environment
-  }
 }
 
 # Auto Scaling Target

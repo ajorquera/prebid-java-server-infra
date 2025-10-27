@@ -1,0 +1,162 @@
+# Sets the response for a status check; used for simple health checks.
+status-response: 'ok'
+
+externalUrl: https://s2s.lngtd.com
+
+analytics:
+  log:
+    enabled: true
+
+adapters:
+  yahooAds:
+    enabled: true
+  ogury:
+    enabled: true
+  medianet:
+    enabled: true
+  sovrn:
+    enabled: true
+  unruly:
+    enabled: true
+  
+
+  appnexus:
+    enabled: true
+    endpoint: https://ib.adnxs.com/openrtb2 # essential to most bidders, need to verify that the endpoint is correct
+
+  triplelift:
+    enabled: true
+    endpoint: https://tlx.3lift.com/s2s/auction?supplier_id=20
+
+  kargo:
+    enabled: true
+
+  conversant:
+    enabled: true
+
+  sharethrough:
+    enabled: true
+
+  generic:
+    aliases:
+      nativo:
+        endpoint: https://exchange.postrelease.com/esi.json?ntv_epid=7
+        enabled: true
+
+  openx:
+    enabled: true
+
+  ix:
+    enabled: true
+    endpoint: http://unwindmedia-us-east.lb.indexww.com/pbs?p=213552
+
+  epsilon:
+    enabled: true
+
+  rubicon:
+    enabled: true
+    endpoint: http://exapi-us-east.rubiconproject.com/a/api/exchange.json?tk_sdc=us-east
+    usersync:
+      redirect:
+        url: https://pixel.rubiconproject.com/exchange/sync.php?p=pbs-longitude&gdpr={{gdpr}}&gdpr_consent={{gdpr_consent}}&us_privacy={{us_privacy}}&gpp={{gpp}}&gpp_sid={{gpp_sid}
+    XAPI:
+      Username: pb_longitude_ads
+      Password: LK0Y31N2B5
+
+  pubmatic:
+    enabled: true
+
+  gumgum:
+    enabled: true
+
+debug: true # enables logging for debugging requests
+
+auction: 
+  price-floors:
+    enabled: true
+    enforce-floors-rate: 100
+    enforce-deal-floors: true
+    use-dynamic-data: false
+
+metrics:
+  # Metrics collection configuration.
+
+  # Enables logging of metrics to the logging backend specified (e.g., for debugging purposes).
+  logback:
+    enabled: true
+    # Name of the metrics logger, can be customized based on logging system setup.
+    name: METRICS
+    # Frequency of logging the metrics in seconds.
+    interval: 30
+
+cache:
+  # Cache configuration to store responses for faster retrieval.
+
+  # Specifies the caching protocol (typically http or https).
+  scheme: http
+  # The host where the cache is stored (use localhost for local setup).
+  host: localhost # We need a dedicated caching server accessible to all sites
+  # Path on the server where cache data can be accessed.
+  path: /cache
+  # Query parameter used by the cache to retrieve specific cached data.
+  query: uuid=
+
+settings:
+  # Settings configuration for Prebid Server behavior.
+
+  # Enforces the validation of account IDs. Setting this to false allows requests with non-validated accounts.
+  enforce-valid-account: false
+  # Generates a unique ID for bid requests if one is not provided.
+  generate-storedrequest-bidrequest-id: true
+
+  # Configures settings for stored configurations (often useful in testing or non-production setups).
+  filesystem:
+    settings-filename: sample/configs/sample-app-settings.yaml
+    stored-requests-dir: sample
+    stored-imps-dir: sample
+    stored-responses-dir: sample
+    categories-dir:
+
+gdpr:
+  # GDPR settings for handling user consent and privacy.
+
+  # Default GDPR consent value if none is provided (1 = consent, 0 = no consent).
+  default-value: 0
+
+  # Vendor lists for GDPR compliance, organized by TCF versions (2 and 3 in this case).
+  vendorlist:
+    v2:
+      # Directory to store the cached vendor list for TCF version 2.
+      cache-dir: /var/tmp/vendor2
+    v3:
+      # Directory to store the cached vendor list for TCF version 3.
+      cache-dir: /var/tmp/vendor3
+
+admin-endpoints:
+  # Administrative endpoints for controlling Prebid Server.
+  logging-httpinteraction:
+    enabled: true
+    path: /logging/httpinteraction
+    on-application-port: true
+    protected: false
+
+  # Allows changing log levels dynamically.
+  logging-changelevel:
+    enabled: true
+    # Path to access the logging level change endpoint.
+    path: /logging/changelevel
+    # Whether this endpoint is accessible on the main application port.
+    on-application-port: true
+    # Sets the endpoint as unprotected; consider adding protection in production.
+    protected: false
+
+# Logging Configuration for Verbose Debugging
+logging:
+  sampling-rate: 0.01
+  level:
+    root: ERROR # Set the default log level for all packages
+  change-level:
+    max-duration-ms: 3600000 # 1h
+  output:
+    stdout: true # Output logs to console
+    file: /var/log/prebid-server.log # Output logs to file

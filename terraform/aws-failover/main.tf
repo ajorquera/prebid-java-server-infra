@@ -24,10 +24,6 @@ resource "aws_route53_health_check" "aws_alb" {
   resource_path     = var.health_check_path
   failure_threshold = 3
   request_interval  = 30
-
-  tags = {
-    Name = "${var.project_name}-aws-health-check"
-  }
 }
 
 # Primary DNS record (AWS Fargate)
@@ -65,6 +61,4 @@ resource "aws_route53_record" "secondary" {
   }
 
   set_identifier = "secondary-gcp"
-
-  depends_on = [ var.gcp_cloudrun_url ]
 }

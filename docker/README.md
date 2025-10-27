@@ -13,9 +13,9 @@ This directory contains Docker configuration for deploying the official [Prebid 
 
 ```bash
 # Build and start Prebid Server
-docker-compose up
+docker-compose up 
 
-# Server will be available at:
+# Server will be available  at:
 # - API: http://localhost:8080
 # - Admin: http://localhost:8060
 # - Status: http://localhost:8080/status

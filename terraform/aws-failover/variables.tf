@@ -1,7 +1,6 @@
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "prebid-server"
 }
 
 variable "domain_name" {
@@ -25,7 +24,6 @@ variable "health_check_path" {
 variable "gcp_cloudrun_url" {
   description = "GCP Cloud Run URL (without https://)"
   type        = string
-  default     = ""
 }
 
 variable "aws_lb_dns_name" {

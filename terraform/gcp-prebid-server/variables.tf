@@ -15,16 +15,9 @@ variable "project_name" {
   default     = "prebid-server"
 }
 
-variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
+variable "image_name" {
+  description = "Container image name in Artifact Registry"
   type        = string
-  default     = "prod"
-}
-
-variable "container_image" {
-  description = "Docker image for the container (use prebid/prebid-server-java:latest or your custom build)"
-  type        = string
-  default     = "gcr.io/prebid-server/prebid-server-java:latest"
 }
 
 variable "container_port" {
@@ -53,14 +46,14 @@ variable "min_instances" {
 
 variable "max_instances" {
   description = "Maximum number of instances"
-  type        = string
-  default     = "10"
+  type        = number
+  default     = 100
 }
 
 variable "container_concurrency" {
   description = "Maximum number of concurrent requests per container"
   type        = number
-  default     = 80
+  default     = 1000
 }
 
 variable "timeout_seconds" {
@@ -79,4 +72,9 @@ variable "allow_public_access" {
   description = "Allow public access to Cloud Run service"
   type        = bool
   default     = true
+}
+
+variable repository_id {
+  description = "Artifact Registry repository ID for container images"
+  type        = string
 }
