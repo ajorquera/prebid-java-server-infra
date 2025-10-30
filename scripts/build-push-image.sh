@@ -8,7 +8,7 @@ TAG="${REGISTRY_URL}/${REPOSITORY_ID}/${IMAGE_NAME}"
 
 # Build the image
 cd "$(dirname "$0")/../docker"
-docker buildx build --platform linux/amd64 -t ${TAG} .
+docker buildx build -t ${TAG} .
 
 echo ""
 echo "Docker image built successfully!"

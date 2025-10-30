@@ -6,42 +6,36 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "3.6.2"
-    }
   }
-}
-
-provider "docker" {
-  host = "unix:///Users/andres/.docker/run/docker.sock"
 }
 
 locals {
   container_name = "prebid-server-container"
-  DOCKER_REGISTRY_URL = "${data.aws_caller_identity.default.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" 
+  docker_registry = "${data.aws_caller_identity.default.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" 
+  docker_build_push_script = "${path.root}/../scripts/build-push-image.sh"
 }
 
 resource "aws_ecr_repository" "default" {
   name = var.repository_id
   region = var.aws_region
+  force_delete = true
 }
 
 resource "terraform_data" "build_deploy_image" {
   provisioner "local-exec" {
-    # set multiline
     environment = {
-      AWS_REGION      = var.aws_region
-      AWS_ACCOUNT_ID  = data.aws_caller_identity.default.account_id
+      REGISTRY_URL    = local.docker_registry
       REPOSITORY_ID   = var.repository_id
       IMAGE_NAME      = var.image_name,
-      REGISTRY_URL    = local.DOCKER_REGISTRY_URL
+      AWS_REGION      = var.aws_region
+      AWS_ACCOUNT_ID  = data.aws_caller_identity.default.account_id
     }
-    command = "${path.root}/../scripts/build-push-image.sh"
+    command = local.docker_build_push_script
     
   }
+
   triggers_replace = {
-    dir_sha2 = sha1(join("", [for f in fileset("${path.root}/../docker", "*"): filesha1("${path.root}/../docker/${f}")]))
+    aws_docker_sha = sha1(join("", [for f in fileset("${path.root}/../docker", "*"): filesha1("${path.root}/../docker/${f}")]))
   }
 
   depends_on = [ aws_ecr_repository.default ]
@@ -299,10 +293,15 @@ resource "aws_ecs_task_definition" "prebid_task" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
+  runtime_platform {
+    cpu_architecture = "ARM64"
+    operating_system_family = "LINUX"
+  }
+
   container_definitions = jsonencode([
     {
       name      = local.container_name
-      image     = "${local.DOCKER_REGISTRY_URL}/${var.repository_id}"
+      image     = "${local.docker_registry}/${var.repository_id}"
       essential = true
 
       portMappings = [
@@ -338,9 +337,21 @@ resource "aws_ecs_service" "prebid_service" {
   cluster          = aws_ecs_cluster.prebid_cluster.id
   task_definition  = aws_ecs_task_definition.prebid_task.arn
   desired_count    = var.desired_count
-  launch_type      = "FARGATE"
   platform_version = "1.4.0"
 
+  force_new_deployment = true
+
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 10
+  }
+
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE"
+    weight = 1
+    base = 1
+  }
+  
 
   network_configuration {
     subnets          = aws_subnet.private_subnets[*].id

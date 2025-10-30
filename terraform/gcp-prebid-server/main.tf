@@ -55,6 +55,7 @@ resource "google_storage_bucket" "default" {
   project  = var.gcp_project_id
   location = var.gcp_region
   uniform_bucket_level_access = true
+  force_destroy = true
 }
 
 resource "terraform_data" "build_deploy_image" {

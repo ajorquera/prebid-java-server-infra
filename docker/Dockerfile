@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Build stage
-FROM --platform=linux/amd64 public.ecr.aws/docker/library/alpine:3.22.1 AS build
+FROM --platform=linux/arm64 public.ecr.aws/docker/library/alpine:3.22.1 AS build
 
 # Install required dependencies
 RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub && \
@@ -51,7 +51,7 @@ RUN git clone --single-branch --branch master --depth 1 $(jq -r .GIT_REPO_URL ./
     rm -rf ~/.m2/ && rm -rf /tmp/*
 
 # Deploy image
-FROM --platform=linux/amd64 public.ecr.aws/docker/library/alpine:3.22.1 AS deploy
+FROM --platform=linux/arm64 public.ecr.aws/docker/library/alpine:3.22.1 AS deploy
 WORKDIR /prebid-server-java
 
 # Copy only the minimal required files
@@ -84,7 +84,15 @@ ENV JAVA_OPTS="\
     -Dhttps.protocols=TLSv1.2,TLSv1.3 \
     -Djavax.net.ssl.trustStoreType=PKCS12 \
     -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true \
-    -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3"
+    -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3 \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=100 \
+    -XX:+ParallelRefProcEnabled=true \
+    -XX:+UseStringDeduplication \
+    -XX:+OptimizeStringConcat \
+    -XX:+UseCompressedOops \
+    -XX:+UseCompressedClassPointers \
+    -XX:+ExitOnOutOfMemoryError" 
 
 # Expose ports for the Prebid Server Java application
 EXPOSE 8080 8060
