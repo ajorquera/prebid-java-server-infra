@@ -1,0 +1,21 @@
+# Example: Basic CloudFront Configuration
+# 
+# This example shows the simplest CloudFront setup with default settings.
+# Copy this to your main.tf and adjust as needed.
+
+module "aws-cloudfront" {
+  source = "./aws-cloudfront"
+
+  # Required variables
+  project_name = local.project_name
+  alb_dns_name = module.aws-prebid-server.alb_dns_name
+  
+  # This ensures CloudFront is created after the ALB
+  depends_on = [module.aws-prebid-server]
+}
+
+# Output the CloudFront URL
+output "cloudfront_url" {
+  description = "CloudFront distribution URL"
+  value       = "https://${module.aws-cloudfront.cloudfront_domain_name}"
+}

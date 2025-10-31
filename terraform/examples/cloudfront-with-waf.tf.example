@@ -1,0 +1,37 @@
+# Example: CloudFront with WAF Protection
+#
+# This example enables AWS WAF for enhanced security with managed rules
+# and rate limiting. Recommended for production environments.
+
+module "aws-cloudfront" {
+  source = "./aws-cloudfront"
+
+  # Required variables
+  project_name = local.project_name
+  alb_dns_name = module.aws-prebid-server.alb_dns_name
+  
+  # Enable WAF for enhanced security
+  enable_waf = true
+  
+  # Use all global edge locations for better performance
+  price_class = "PriceClass_200"
+  
+  # Enable compression for better performance
+  enable_compression = true
+  
+  # Force HTTPS
+  viewer_protocol_policy = "redirect-to-https"
+  
+  depends_on = [module.aws-prebid-server]
+}
+
+# Output the CloudFront and WAF details
+output "cloudfront_url" {
+  description = "CloudFront distribution URL"
+  value       = "https://${module.aws-cloudfront.cloudfront_domain_name}"
+}
+
+output "waf_web_acl_arn" {
+  description = "WAF Web ACL ARN"
+  value       = module.aws-cloudfront.waf_web_acl_arn
+}

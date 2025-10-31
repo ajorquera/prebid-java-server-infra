@@ -1,0 +1,54 @@
+# Example: CloudFront with Custom Domain
+#
+# This example shows how to configure CloudFront with a custom domain
+# using an ACM certificate. The certificate MUST be in us-east-1 region.
+
+# Step 1: Create ACM certificate in us-east-1 (required for CloudFront)
+# 
+# Run this command first:
+# aws acm request-certificate \
+#   --domain-name prebid.example.com \
+#   --validation-method DNS \
+#   --region us-east-1
+#
+# Then validate the certificate by adding the DNS validation records.
+
+# Step 2: Configure CloudFront with custom domain
+module "aws-cloudfront" {
+  source = "./aws-cloudfront"
+
+  # Required variables
+  project_name = local.project_name
+  alb_dns_name = module.aws-prebid-server.alb_dns_name
+  
+  # Custom domain configuration
+  ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+  domain_names        = ["prebid.example.com", "www.prebid.example.com"]
+  
+  # Use HTTPS only with custom domain
+  viewer_protocol_policy = "redirect-to-https"
+  
+  # Optional: Enable WAF for production
+  enable_waf = true
+  
+  depends_on = [module.aws-prebid-server]
+}
+
+# Step 3: Create Route 53 alias record (recommended over CNAME)
+resource "aws_route53_record" "cloudfront" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "prebid.example.com"
+  type    = "A"
+
+  alias {
+    name                   = module.aws-cloudfront.cloudfront_domain_name
+    zone_id                = module.aws-cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+# Output the custom domain URL
+output "prebid_url" {
+  description = "Prebid Server URL with custom domain"
+  value       = "https://prebid.example.com"
+}
