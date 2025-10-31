@@ -35,7 +35,18 @@
 
 ## AWS Fargate Architecture (Primary)
 
+### With CloudFront CDN (Optional)
+
 ```
+┌────────────────────────────────────────────────────────────────┐
+│                      CloudFront CDN                            │
+│  Edge Locations: 400+ worldwide                               │
+│  - Caching                                                     │
+│  - DDoS Protection (AWS Shield Standard)                      │
+│  - Optional WAF                                               │
+└───────────────────────────┬────────────────────────────────────┘
+                            │
+                            ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                         VPC (10.0.0.0/16)                    │
 │                                                              │
@@ -118,11 +129,66 @@
 └──────────────────────────────────────────────────────────┘
 ```
 
+## CloudFront CDN (Optional)
+
+### Benefits
+
+- **Global Distribution**: 400+ edge locations worldwide for reduced latency
+- **DDoS Protection**: Built-in AWS Shield Standard protection
+- **SSL/TLS Termination**: HTTPS support with custom domains
+- **Compression**: Automatic Gzip and Brotli compression
+- **Security Headers**: Automatic injection of security headers (HSTS, CSP, etc.)
+- **Optional WAF**: Advanced threat protection with AWS WAF
+
+### Architecture Flow with CloudFront
+
+```
+User Request → CloudFront (Edge Location)
+                    ↓
+              [Cache Check]
+                    ↓
+           (Cache Miss/Dynamic)
+                    ↓
+              ALB (Origin)
+                    ↓
+            ECS Fargate Tasks
+                    ↓
+          Response to CloudFront
+                    ↓
+          Response to User
+```
+
+### Caching Strategy
+
+The CloudFront module is optimized for Prebid Server's dynamic content:
+
+- **Default TTL**: 0 seconds (no caching by default)
+- **Max TTL**: 86400 seconds (24 hours, if explicitly requested)
+- **Header Forwarding**: All important headers (Host, User-Agent, etc.)
+- **Query String Forwarding**: All query parameters
+- **Cookie Forwarding**: All cookies
+
+This ensures dynamic bid requests pass through to the origin while allowing the origin to control caching for static assets.
+
+### WAF Protection (Optional)
+
+When enabled, CloudFront WAF provides:
+
+1. **AWS Managed Rules - Common Rule Set**: Protection against OWASP Top 10
+2. **AWS Managed Rules - Known Bad Inputs**: Protection against known malicious patterns
+3. **Rate Limiting**: 2000 requests per 5 minutes per IP
+4. **Custom Rules**: Ability to add custom security rules
+
+### Cost Considerations
+
+- **Without WAF**: ~$50-100/month (based on traffic)
+- **With WAF**: ~$60-110/month (additional $8-10/month for WAF)
+
 ## Failover Strategy
 
 ### Automatic DNS Failover
 
-1. **Normal Operation**: Route 53 directs all traffic to AWS ALB
+1. **Normal Operation**: Route 53 directs all traffic to CloudFront (if enabled) or AWS ALB
 2. **Health Check Failure**: If AWS health check fails 3 consecutive times
 3. **Failover Triggered**: Route 53 automatically routes traffic to GCP Cloud Run
 4. **Recovery**: When AWS health checks pass, traffic gradually returns to AWS
