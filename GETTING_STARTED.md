@@ -37,6 +37,7 @@ This is a complete, production-ready infrastructure setup that deploys:
 | [DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) | Production checklist |
 | [PLATFORM_COMPARISON.md](docs/PLATFORM_COMPARISON.md) | AWS vs GCP comparison |
 | [PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md) | Complete project overview |
+| [CLOUDFRONT_SETUP.md](docs/CLOUDFRONT_SETUP.md) | CloudFront CDN setup guide |
 
 ## 5-Minute Test
 
