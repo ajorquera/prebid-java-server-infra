@@ -116,15 +116,6 @@ resource "aws_cloudfront_response_headers_policy" "security_headers" {
   }
 }
 
-# Origin Access Control for ALB
-resource "aws_cloudfront_origin_access_control" "alb_oac" {
-  name                              = "${var.project_name}-alb-oac"
-  description                       = "Origin Access Control for ALB"
-  origin_access_control_origin_type = "custom"
-  signing_behavior                  = "no-override"
-  signing_protocol                  = "sigv4"
-}
-
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "prebid_distribution" {
   enabled             = true

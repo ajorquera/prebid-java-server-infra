@@ -35,8 +35,10 @@ module "aws-cloudfront" {
 }
 
 # Step 3: Create Route 53 alias record (recommended over CNAME)
+# Option A: If you have a Route 53 hosted zone, use an alias record
+# Replace 'YOUR_ZONE_ID' with your actual Route 53 zone ID
 resource "aws_route53_record" "cloudfront" {
-  zone_id = aws_route53_zone.main.zone_id
+  zone_id = "YOUR_ZONE_ID"  # e.g., "Z1234567890ABC"
   name    = "prebid.example.com"
   type    = "A"
 
@@ -46,6 +48,9 @@ resource "aws_route53_record" "cloudfront" {
     evaluate_target_health = false
   }
 }
+
+# Option B: If you manage DNS elsewhere, create a CNAME record manually:
+# prebid.example.com  CNAME  d1234567890abc.cloudfront.net
 
 # Output the custom domain URL
 output "prebid_url" {
