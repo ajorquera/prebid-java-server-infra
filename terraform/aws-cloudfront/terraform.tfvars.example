@@ -1,0 +1,29 @@
+# Project Configuration
+project_name = "prebid-server"
+
+# Origin Configuration
+alb_dns_name = "prebid-server-alb-1234567890.us-east-1.elb.amazonaws.com"
+
+# CloudFront Configuration
+price_class              = "PriceClass_100"  # Use US, Canada, and Europe edge locations
+enable_compression       = true
+viewer_protocol_policy   = "redirect-to-https"
+
+# Caching Configuration (adjusted for Prebid Server's dynamic nature)
+default_ttl = 0      # No caching by default for dynamic content
+max_ttl     = 86400  # Allow caching up to 24 hours if explicitly requested
+min_ttl     = 0      # No minimum cache time
+
+# SSL/TLS Configuration (Optional - for custom domain)
+# ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+# domain_names        = ["prebid.example.com"]
+
+# WAF Configuration
+enable_waf = false  # Set to true to enable AWS WAF protection
+
+# Logging
+log_retention_days = 7
+
+# HTTP Methods
+allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+cached_methods  = ["GET", "HEAD", "OPTIONS"]

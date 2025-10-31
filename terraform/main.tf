@@ -45,6 +45,23 @@ module "aws-prebid-server" {
   desired_count   = 0
 }
 
+# CloudFront Distribution (CDN for AWS Prebid Server)
+# Uncomment to enable CloudFront distribution in front of the ALB
+# module "aws-cloudfront" {
+#   source = "./aws-cloudfront"
+#
+#   project_name    = local.project_name
+#   alb_dns_name    = module.aws-prebid-server.alb_dns_name
+#   enable_waf      = false  # Set to true to enable AWS WAF
+#   price_class     = "PriceClass_100"  # Use US, Canada, and Europe
+#
+#   # Optional: Custom domain configuration
+#   # ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+#   # domain_names        = ["${local.subdomain}.${local.domain_name}"]
+#
+#   depends_on = [module.aws-prebid-server]
+# }
+
 # module "gcp-prebid-server" {
 #   source = "./gcp-prebid-server"
 #   gcp_project_id    = local.gcp_project_id

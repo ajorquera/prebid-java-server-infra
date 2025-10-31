@@ -176,6 +176,47 @@ export IMAGE_TAG=v1.0.0
    terraform output cloudrun_url
    ```
 
+### Step 5: Deploy CloudFront CDN (Optional)
+
+Add CloudFront in front of your ALB for global content delivery and enhanced security:
+
+1. Navigate to the main Terraform directory:
+   ```bash
+   cd terraform
+   ```
+
+2. Edit `main.tf` and uncomment the CloudFront module:
+   ```hcl
+   module "aws-cloudfront" {
+     source = "./aws-cloudfront"
+     
+     project_name = local.project_name
+     alb_dns_name = module.aws-prebid-server.alb_dns_name
+     enable_waf   = false  # Set to true for WAF protection
+     
+     depends_on = [module.aws-prebid-server]
+   }
+   ```
+
+3. Apply the configuration:
+   ```bash
+   terraform apply
+   ```
+
+4. Get the CloudFront domain:
+   ```bash
+   terraform output cloudfront_domain_name
+   ```
+
+**Benefits of CloudFront**:
+- Global edge locations for lower latency
+- Built-in DDoS protection (AWS Shield Standard)
+- Optional WAF for advanced security
+- Automatic compression and caching
+- HTTPS/SSL support with custom domains
+
+See [terraform/aws-cloudfront/README.md](terraform/aws-cloudfront/README.md) for detailed configuration options.
+
 ## AWS Fargate Architecture
 
 ### Components
@@ -186,6 +227,7 @@ export IMAGE_TAG=v1.0.0
 - **Fargate Tasks**: Runs containerized Prebid Server
 - **Auto Scaling**: Scales based on CPU (70%) and Memory (80%) utilization
 - **CloudWatch**: Centralized logging and monitoring
+- **CloudFront (Optional)**: CDN for global content delivery and security
 
 ### Scaling Configuration
 
