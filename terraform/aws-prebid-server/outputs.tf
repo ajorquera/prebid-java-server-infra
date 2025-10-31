@@ -3,6 +3,11 @@ output "alb_dns_name" {
   value       = aws_lb.prebid_alb.dns_name
 }
 
+output "alb_zone_id" {
+  description = "Zone ID of the Application Load Balancer"
+  value       = aws_lb.prebid_alb.zone_id
+}
+
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.prebid_cluster.name
