@@ -1,9 +1,5 @@
 terraform {
-  backend "s3" {
-    bucket = "lngtd-new-terraform-states"
-    key    = "terraform.tfstate"
-    region = "us-east-1"
-  }
+  backend "local" {}
 }
 
 module "aws-tfstate" {
@@ -12,37 +8,26 @@ module "aws-tfstate" {
   bucket_prefix = "lngtd-new"
 }
 
-locals {
-  project_name      = "prebid-server"
-
-  gcp_project_id    = "testing-account-476319"
-  gcp_region        = "us-central1"
-  aws_region        = "us-east-1"
-
-  domain_name       = "createapp.click"
-  subdomain         = "s2s"
-
-  repository_id     = "prebid-server-repository"
-  image_name        = "pbs"
-}
 
 provider "aws" {
-  region = local.aws_region
+  region = var.aws_region
 }
 
 provider "google" {
-  project = local.gcp_project_id
-  region  = local.gcp_region
+  project = var.gcp_project_id
+  region  = var.gcp_region
 }
 
 
 module "aws-prebid-server" {
-  source          = "./aws-prebid-server"
-  repository_id   = local.repository_id
-  image_name      = local.image_name
-  project_name    = local.project_name
-  aws_region      = local.aws_region
-  desired_count   = 0
+  source              = "./aws-prebid-server"
+  repository_id       = var.repository_id
+  image_name          = var.image_name
+  project_name        = var.project_name
+  aws_region          = var.aws_region
+  domain_names        = var.domain_names
+  ssl_certificate_arn = var.ssl_certificate_arn
+  desired_count       = var.desired_count
 }
 
 # module "gcp-prebid-server" {

@@ -1,0 +1,8 @@
+project_name        = ""
+gcp_project_id      = ""
+gcp_region          = ""
+aws_region          = ""
+repository_id       = ""
+image_name          = ""
+ssl_certificate_arn = ""
+domain_names        = []

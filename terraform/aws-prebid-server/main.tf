@@ -1,6 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-  
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -30,8 +29,8 @@ resource "terraform_data" "build_deploy_image" {
       AWS_REGION      = var.aws_region
       AWS_ACCOUNT_ID  = data.aws_caller_identity.default.account_id
     }
+
     command = local.docker_build_push_script
-    
   }
 
   triggers_replace = {
@@ -42,6 +41,8 @@ resource "terraform_data" "build_deploy_image" {
 }
 
 data "aws_caller_identity" "default" {}
+
+
 
 # VPC Configuration
 resource "aws_vpc" "prebid_vpc" {
@@ -57,7 +58,6 @@ resource "aws_subnet" "public_subnets" {
   cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
-
 }
 
 # Private Subnets
@@ -66,7 +66,6 @@ resource "aws_subnet" "private_subnets" {
   vpc_id            = aws_vpc.prebid_vpc.id
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
   availability_zone = var.availability_zones[count.index]
-
 }
 
 # Internet Gateway
@@ -180,7 +179,7 @@ resource "aws_security_group" "ecs_tasks_sg" {
 }
 
 # Application Load Balancer
-resource "aws_lb" "prebid_alb" {
+resource "aws_lb" "default" {
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
@@ -215,7 +214,7 @@ resource "aws_lb_target_group" "prebid_tg" {
 
 # ALB Listener
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.prebid_alb.arn
+  load_balancer_arn = aws_lb.default.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -226,7 +225,7 @@ resource "aws_lb_listener" "http" {
 }
 
 # ECS Cluster
-resource "aws_ecs_cluster" "prebid_cluster" {
+resource "aws_ecs_cluster" "default" {
   name = "${var.project_name}-cluster"
 
   setting {
@@ -280,7 +279,6 @@ resource "aws_iam_role" "ecs_task_role" {
       }
     ]
   })
-
 }
 
 # ECS Task Definition
@@ -294,7 +292,7 @@ resource "aws_ecs_task_definition" "prebid_task" {
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   runtime_platform {
-    cpu_architecture = "ARM64"
+    cpu_architecture        = "ARM64"
     operating_system_family = "LINUX"
   }
 
@@ -332,9 +330,9 @@ resource "aws_ecs_task_definition" "prebid_task" {
 }
 
 # ECS Service
-resource "aws_ecs_service" "prebid_service" {
+resource "aws_ecs_service" "default" {
   name             = "${var.project_name}-service"
-  cluster          = aws_ecs_cluster.prebid_cluster.id
+  cluster          = aws_ecs_cluster.default.id
   task_definition  = aws_ecs_task_definition.prebid_task.arn
   desired_count    = var.desired_count
   platform_version = "1.4.0"
@@ -348,10 +346,9 @@ resource "aws_ecs_service" "prebid_service" {
 
   capacity_provider_strategy {
     capacity_provider = "FARGATE"
-    weight = 1
-    base = 1
+    weight            = 1
+    base              = 1
   }
-  
 
   network_configuration {
     subnets          = aws_subnet.private_subnets[*].id
@@ -365,9 +362,8 @@ resource "aws_ecs_service" "prebid_service" {
     container_port   = var.container_port
   }
 
-  health_check_grace_period_seconds = 60
-
-  deployment_maximum_percent = 200
+  health_check_grace_period_seconds  = 60
+  deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
 
   depends_on = [
@@ -380,7 +376,7 @@ resource "aws_ecs_service" "prebid_service" {
 resource "aws_appautoscaling_target" "ecs_target" {
   max_capacity       = var.max_capacity
   min_capacity       = var.min_capacity
-  resource_id        = "service/${aws_ecs_cluster.prebid_cluster.name}/${aws_ecs_service.prebid_service.name}"
+  resource_id        = "service/${aws_ecs_cluster.default.name}/${aws_ecs_service.default.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
@@ -415,8 +411,222 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
+
     target_value       = var.memory_target_value
     scale_in_cooldown  = 300
     scale_out_cooldown = 60
   }
 }
+
+# CloudWatch Log Group for CloudFront
+resource "aws_cloudwatch_log_group" "cloudfront_logs" {
+  name              = "/aws/cloudfront/${var.project_name}"
+  retention_in_days = var.log_retention_days
+}
+
+# Origin Request Policy - Forward necessary headers for Prebid Server
+resource "aws_cloudfront_origin_request_policy" "prebid_policy" {
+  name    = "${var.project_name}-origin-request-policy"
+  comment = "Origin request policy for Prebid Server"
+
+  cookies_config {
+    cookie_behavior = "all"
+  }
+
+  headers_config {
+    header_behavior = "allViewer"
+  }
+
+  query_strings_config {
+    query_string_behavior = "all"
+  }
+}
+
+# Cache Policy - Optimized for Prebid Server with low caching
+resource "aws_cloudfront_cache_policy" "prebid_cache_policy" {
+  name        = "${var.project_name}-cache-policy"
+  comment     = "Cache policy for Prebid Server - minimal caching for dynamic content"
+  default_ttl = 86400
+  max_ttl     = 31536000
+  min_ttl     = 0
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config {
+      cookie_behavior = "all"
+    }
+
+    headers_config {
+      header_behavior = "whitelist"
+      headers {
+        items = ["Host", "Origin", "Referer", "User-Agent", "Accept", "Accept-Language"]
+      }
+    }
+
+    query_strings_config {
+      query_string_behavior = "all"
+    }
+
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+  }
+}
+
+# Response Headers Policy - Security headers
+resource "aws_cloudfront_response_headers_policy" "security_headers" {
+  name    = "${var.project_name}-security-headers"
+  comment = "Security headers for Prebid Server"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      override                   = true
+      preload                    = true
+    }
+
+    content_type_options {
+      override = true
+    }
+
+    frame_options {
+      frame_option = "SAMEORIGIN"
+      override     = true
+    }
+
+    xss_protection {
+      mode_block = true
+      protection = true
+      override   = true
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  cors_config {
+    access_control_allow_credentials = false
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    }
+
+    access_control_allow_origins {
+      items = ["*"]
+    }
+
+    access_control_max_age_sec = 600
+    origin_override            = true
+  }
+}
+
+# CloudFront Distribution
+resource "aws_cloudfront_distribution" "prebid_distribution" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "CloudFront distribution for ${var.project_name}"
+  price_class         = var.price_class
+  aliases             = var.domain_names
+
+  origin {
+    domain_name = aws_lb.default.dns_name
+    origin_id   = "ALB-${var.project_name}"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "ALB-${var.project_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    compress               = true
+
+    cache_policy_id            = aws_cloudfront_cache_policy.prebid_cache_policy.id
+    origin_request_policy_id   = aws_cloudfront_origin_request_policy.prebid_policy.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = var.ssl_certificate_arn == ""
+    acm_certificate_arn            = var.ssl_certificate_arn != "" ? var.ssl_certificate_arn : null
+    ssl_support_method             = var.ssl_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.ssl_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
+  }
+
+  logging_config {
+    include_cookies = false
+    bucket          = aws_s3_bucket.cloudfront_logs.bucket_domain_name
+    prefix          = "cloudfront/"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-distribution"
+    Environment = "production"
+    Project     = var.project_name
+  }
+}
+
+# S3 Bucket for CloudFront Logs
+resource "aws_s3_bucket" "cloudfront_logs" {
+  bucket = "${var.project_name}-cloudfront-logs-${data.aws_caller_identity.default.account_id}"
+  force_destroy = true
+  tags = {
+    Name    = "${var.project_name}-cloudfront-logs"
+    Project = var.project_name
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "cloudfront_logs" {
+  bucket = aws_s3_bucket.cloudfront_logs.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_acl" "cloudfront_logs" {
+  bucket = aws_s3_bucket.cloudfront_logs.id
+  acl    = "private"
+
+  depends_on = [aws_s3_bucket_ownership_controls.cloudfront_logs]
+}
+
+resource "aws_s3_bucket_public_access_block" "cloudfront_logs" {
+  bucket = aws_s3_bucket.cloudfront_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "cloudfront_logs" {
+  bucket = aws_s3_bucket.cloudfront_logs.id
+
+  rule {
+    id     = "delete-old-logs"
+    status = "Enabled"
+
+    expiration {
+      days = var.log_retention_days
+    }
+  }
+}
+

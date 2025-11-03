@@ -89,3 +89,25 @@ variable "repository_id" {
   description = "value"
   type = string
 }
+
+variable "price_class" {
+  description = "CloudFront distribution price class"
+  type        = string
+  default     = "PriceClass_100"
+  validation {
+    condition     = contains(["PriceClass_All", "PriceClass_200", "PriceClass_100"], var.price_class)
+    error_message = "Price class must be PriceClass_All, PriceClass_200, or PriceClass_100."
+  }
+}
+
+variable "ssl_certificate_arn" {
+  description = "ARN of the SSL certificate in ACM (us-east-1 region). If not provided, CloudFront default certificate will be used"
+  type        = string
+  default     = ""
+}
+
+variable "domain_names" {
+  description = "List of domain names for the CloudFront distribution. Only needed if using custom SSL certificate"
+  type        = list(string)
+  default     = []
+}

@@ -6,19 +6,11 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 7.0"
     }
-      docker = {
-      source  = "kreuzwerker/docker"
-      version = "3.6.2"
-    }
   }
 }
 
 locals {
   DOCKER_REGISTRY_URL = "${var.gcp_region}-docker.pkg.dev"
-}
-
-provider docker {
-  host = "unix:///Users/andres/.docker/run/docker.sock"
 }
 
 provider "google" {
