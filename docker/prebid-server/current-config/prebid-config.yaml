@@ -1,7 +1,7 @@
 # Sets the response for a status check; used for simple health checks.
 status-response: 'ok'
 
-externalUrl: https://s2s.lngtd.com
+externalUrl: https://sportingnews-s2s.lngtd.com
 
 analytics:
   log:

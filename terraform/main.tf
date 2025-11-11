@@ -1,5 +1,9 @@
 terraform {
-  backend "local" {}
+  backend "s3" {
+    bucket = "lngtd-new-terraform-states"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 module "aws-tfstate" {

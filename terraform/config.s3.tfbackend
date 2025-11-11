@@ -1,0 +1,2 @@
+bucket = "lngtd-new-terraform-states" 
+key    = "terraform.tfstate"
